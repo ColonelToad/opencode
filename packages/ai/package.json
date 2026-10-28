@@ -79,6 +79,7 @@
     "./providers/meta/responses": "./src/providers/meta/responses.ts",
     "./providers/minimax": "./src/providers/minimax.ts",
     "./providers/minimax/chat": "./src/providers/minimax/chat.ts",
+    "./providers/minimax/images": "./src/providers/minimax/images.ts",
     "./providers/minimax/messages": "./src/providers/minimax/messages.ts",
     "./providers/minimax/responses": "./src/providers/minimax/responses.ts",
     "./providers/mistral": "./src/providers/mistral.ts",
