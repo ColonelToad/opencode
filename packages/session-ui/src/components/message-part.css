@@ -726,15 +726,20 @@
       margin: 4px;
     }
 
-    /* The ghost button is transparent, so paint the section's background behind it, fading in from the left so the
-       line ends softly instead of being cut. It is exactly the button's height and never takes pointer events, so
-       only the text beside the button is covered: no gutter, and the lines below keep the full width. */
+    /* The ghost button is transparent, so paint the section's background behind it. It fades out to the left, top
+       and bottom so text at its edges softens instead of being cut, and runs to the card edge on the right. It is
+       solid only across the button's height and never takes pointer events, so there is no gutter and the lines
+       below keep the full width. The top stops at the section edge, so it never covers the border above the output. */
     [data-slot="bash-copy"]::before {
       content: "";
       position: absolute;
       z-index: -1;
-      inset: 0 0 0 -24px;
-      background: linear-gradient(to right, transparent, var(--bash-section-background) 24px);
+      inset: -4px -4px -8px -24px;
+      background: var(--bash-section-background);
+      mask-image:
+        linear-gradient(to right, transparent, #000 24px),
+        linear-gradient(transparent, #000 8px, #000 calc(100% - 8px), transparent);
+      mask-composite: intersect;
       pointer-events: none;
     }
 
