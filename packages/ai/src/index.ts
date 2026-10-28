@@ -21,7 +21,7 @@ import {
   type TranscriptionRequest,
   type TranscriptionRequestInput,
 } from "./transcription.js"
-import { Tool, ToolFailure, type ToolExecuteContext, type ToolSchema } from "./tool.js"
+import { Tool, ToolFailure, type FreeformOption, type ToolExecuteContext, type ToolSchema } from "./tool.js"
 import { fileMediaType } from "./utils/media-type.js"
 import { Video, type VideoModel, type VideoRequest, type VideoRequestInput } from "./video.js"
 
@@ -246,6 +246,7 @@ const fileError = (message: string, cause: unknown) =>
 export const tool = <Parameters extends ToolSchema<any>>(config: {
   readonly description: string
   readonly parameters: Parameters
+  readonly freeform?: FreeformOption<Parameters>
   readonly execute: (
     params: Schema.Schema.Type<Parameters>,
     context: Partial<ToolExecuteContext> & { readonly signal: AbortSignal },
@@ -255,6 +256,7 @@ export const tool = <Parameters extends ToolSchema<any>>(config: {
     description: config.description,
     parameters: config.parameters,
     success: Schema.Unknown,
+    freeform: config.freeform,
     execute: (params, context) =>
       Effect.tryPromise({
         try: async (signal) => (await config.execute(params, { ...context, signal })) ?? null,

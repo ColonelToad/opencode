@@ -81,6 +81,27 @@ for await (const event of events) {
 }
 ```
 
+### Freeform tools
+
+A tool with exactly one required string parameter can set `freeform`, so the model writes that parameter as raw text
+instead of JSON arguments: unconstrained `text`, or text matching a `regex` or `lark` grammar.
+
+```ts
+const run_code = AI.tool({
+  description: "Run JavaScript",
+  parameters: Schema.Struct({ code: Schema.String }),
+  freeform: { type: "lark", grammar: JS_GRAMMAR },
+  execute: ({ code }) => runCode(code),
+})
+```
+
+OpenAI Responses and Chat Completions, and every provider that reuses them, send it as a
+[custom tool](https://platform.openai.com/docs/guides/function-calling#custom-tools). Other protocols send the normal
+JSON tool. Only set `freeform` for models that accept custom tools in that format; nothing checks this or falls back
+to JSON, so an unsupported model returns the provider's error. Calls, tool input events, results and history always
+use the `{ code }` object, and past calls replay the way the tool is declared in the current request, so the same
+history works with or without `freeform`.
+
 ### Structured output
 
 `generateObject` forces a tool call and decodes its input against `schema`; pass `jsonSchema` instead for an
