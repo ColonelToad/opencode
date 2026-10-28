@@ -41,10 +41,7 @@ export type ResolvedExecutionLimits = {
 }
 
 /** Configuration shared by `CodeMode.make` and `CodeMode.execute`. */
-export type Options<
-  Provided extends Record<string, unknown> = {},
-  Extensions extends ReadonlyArray<Extension> = [],
-> = {
+export type Options<Provided extends Record<string, unknown> = {}, Extensions extends ReadonlyArray<Extension> = []> = {
   /** Explicit tools exposed to the program as `tools`. */
   tools?: Provided & Tools<Services<Provided>>
   /** Hooks around every tool and extension call the program makes; see `Hooks`. */
@@ -56,10 +53,9 @@ export type Options<
 }
 
 /** The Effect environment an execution needs: what the tools and the extensions' Effect globals require. */
-export type Environment<
-  Provided extends Record<string, unknown>,
-  Extensions extends ReadonlyArray<Extension>,
-> = Services<Provided> | Extension.Services<Extensions[number]>
+export type Environment<Provided extends Record<string, unknown>, Extensions extends ReadonlyArray<Extension>> =
+  | Services<Provided>
+  | Extension.Services<Extensions[number]>
 
 /** Options for one CodeMode execution. */
 export type ExecuteOptions<

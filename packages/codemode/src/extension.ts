@@ -14,14 +14,13 @@ export type Extension<Globals extends Readonly<Record<string, Function>> = Reado
 }
 
 /** The Effect environment required by an extension's Effect-returning globals. */
-export type Services<E> =
-  E extends { readonly globals: infer Globals }
-    ? Globals[keyof Globals] extends infer Global
-      ? Global extends (...args: never) => infer Result
-        ? Effect.Services<Result>
-        : never
+export type Services<E> = E extends { readonly globals: infer Globals }
+  ? Globals[keyof Globals] extends infer Global
+    ? Global extends (...args: never) => infer Result
+      ? Effect.Services<Result>
       : never
     : never
+  : never
 
 export const make = <const Globals extends Readonly<Record<string, Function>>>(
   options: Extension<Globals>,
