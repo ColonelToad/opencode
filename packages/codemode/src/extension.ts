@@ -15,7 +15,7 @@ export type Extension<Globals extends Readonly<Record<string, Function>> = Reado
 
 /** The Effect environment required by an extension's Effect-returning globals. */
 export type Services<E> =
-  E extends Extension<infer Globals>
+  E extends { readonly globals: infer Globals }
     ? Globals[keyof Globals] extends infer Global
       ? Global extends (...args: never) => infer Result
         ? Effect.Services<Result>
