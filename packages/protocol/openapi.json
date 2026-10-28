@@ -21024,6 +21024,9 @@
               "updated": {
                 "type": "number"
               },
+              "busy": {
+                "type": "number"
+              },
               "idle": {
                 "type": "number"
               },
