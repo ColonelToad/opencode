@@ -349,6 +349,32 @@ describe("Image", () => {
       }).pipe(Effect.provide(sent({ size: "2736x1536" }, OPENAI_STYLE))),
     )
 
+    for (const [aspect, size] of [
+      ["16:9", "3840x2160"],
+      ["1:1", "2880x2880"],
+    ] as const)
+      it.effect(`sends gpt-image-2 its largest ${aspect} size for 4K`, () =>
+        Image.generate({
+          model: OpenAI.configure({ apiKey: "test", baseURL: "https://openai.test/v1" }).image("gpt-image-2"),
+          prompt,
+          aspect,
+          resolution: "4K",
+        }).pipe(Effect.provide(sent({ size }, OPENAI_STYLE))),
+      )
+
+    it.effect("names the gateway in Vercel AI Gateway sizing errors", () =>
+      Effect.gen(function* () {
+        const error = yield* Image.generate({
+          model: VercelAIGateway.configure({ apiKey: "test" }).image("openai/gpt-image-1"),
+          prompt,
+          aspect: "16:9",
+        }).pipe(Effect.flip)
+        expect(error.message).toStartWith(
+          "Vercel AI Gateway Images can't render 16:9; the closest size it takes is 1536x1024 (3:2)",
+        )
+      }).pipe(Effect.provide(layer(() => Effect.die("no request should be sent")))),
+    )
+
     it.effect("sends OpenRouter an aspect ratio and resolution tier instead of pixels", () =>
       Effect.gen(function* () {
         const openrouter = OpenRouter.configure({ apiKey: "test", baseURL: "https://openrouter.test/v1" })
@@ -361,7 +387,7 @@ describe("Image", () => {
         const error = yield* Image.generate({ model: openrouter.image("x/y"), prompt, resolution: "8K" }).pipe(
           Effect.flip,
         )
-        expect(error.message).toContain("can't render 8K; the closest resolution it takes is 4K")
+        expect(error.message).toStartWith("OpenRouter Images can't render 8K; the closest resolution it takes is 4K")
       }).pipe(
         Effect.provide(
           layer((input) => {

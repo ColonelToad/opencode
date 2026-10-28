@@ -164,7 +164,7 @@ const sizes = (model: string): ImageSizing.Limits | ReadonlyArray<ImageSizing.Si
       { width: 1024, height: 1536 },
     ]
   if (id.startsWith("gpt-image-"))
-    return { multiple: 16, maxEdge: 3840, minPixels: 655_360, maxPixels: 8_294_400, maxRatio: 3 }
+    return { multiple: 16, maxEdge: 3840, minPixels: 655_360, maxPixels: 8_294_400, maxRatio: 3, upToMax: true }
   return { multiple: 16 }
 }
 
@@ -190,7 +190,7 @@ export const pixelSize: OpenAIImageSizing = (request, route) => {
   ).pipe(Effect.map((size) => (size === undefined ? undefined : { size: `${size.width}x${size.height}` })))
 }
 
-const streamOptions = (request: MediaProtocol.Addressed<Request>) => {
+const streamOptions = (request: MediaProtocol.Addressed<Request>, route: MediaProtocol.Identity) => {
   if (request.mode !== "stream") return Effect.succeed(undefined)
   if (request.n !== undefined && request.n > 1)
     return Effect.fail(
@@ -203,7 +203,7 @@ const isEdit = (request: Request) => (request.images?.length ?? 0) > 0
 
 const isInline = (asset: Media.Asset) => asset.source.type === "bytes" || asset.source.type === "base64"
 
-const reference = (asset: Media.Asset, provider: ProviderID) =>
+const reference = (asset: Media.Asset, provider: ProviderID, route: MediaProtocol.Identity) =>
   ProviderShared.mediaReference(asset, provider, route.name).pipe(
     Effect.map((item) => (item.type === "ref" ? { file_id: item.value } : { image_url: item.value })),
   )
@@ -211,6 +211,7 @@ const reference = (asset: Media.Asset, provider: ProviderID) =>
 const fromRequest = Effect.fn("OpenAIImages.fromRequest")(function* (
   request: MediaProtocol.Addressed<Request>,
   sizing: OpenAIImageSizing,
+  named: MediaProtocol.Identity,
 ) {
   const images = request.images ?? []
   const mask = request.providerOptions?.mask
@@ -223,8 +224,8 @@ const fromRequest = Effect.fn("OpenAIImages.fromRequest")(function* (
   const fields = mergeJsonRecords(
     {
       n: request.n,
-      ...(yield* sizing(request, route)),
-      ...(yield* streamOptions(request)),
+      ...(yield* sizing(request, named)),
+      ...(yield* streamOptions(request, named)),
     },
     nativeOptions(request.providerOptions),
     request.http?.body,
@@ -247,8 +248,8 @@ const fromRequest = Effect.fn("OpenAIImages.fromRequest")(function* (
     return MediaProtocol.multipart(form)
   }
 
-  const references = yield* Effect.forEach(images, (image) => reference(image, request.model.provider))
-  const maskReference = mask === undefined ? undefined : yield* reference(mask, request.model.provider)
+  const references = yield* Effect.forEach(images, (image) => reference(image, request.model.provider, named))
+  const maskReference = mask === undefined ? undefined : yield* reference(mask, request.model.provider, named)
   return MediaProtocol.json(
     mergeJsonRecords(
       {
@@ -365,9 +366,10 @@ const finish = (state: State, context: MediaProtocol.ResponseContext<Request>) =
 // 7. Protocol and route
 // ---------------------------------------------------------------------------
 
-const makeProtocol = (sizing: OpenAIImageSizing) =>
+/** `named` labels request-building errors with the host that serves the route, such as OpenRouter. */
+const makeProtocol = (sizing: OpenAIImageSizing, named: MediaProtocol.Identity) =>
   MediaProtocol.stream<Request, ImageEvent, Frame, State>(route, {
-    body: { from: (request) => fromRequest(request, sizing) },
+    body: { from: (request) => fromRequest(request, sizing, named) },
     frames: (bytes, context) =>
       context.request.mode === "stream"
         ? Framing.sse.frame(bytes)
@@ -377,16 +379,28 @@ const makeProtocol = (sizing: OpenAIImageSizing) =>
     finish,
   })
 
-export const protocol = makeProtocol(pixelSize)
+export const protocol = makeProtocol(pixelSize, route)
 
 /**
  * `provider` attributes models, refs, and metadata to an OpenAI-compatible host; it defaults to `openai`. `sizing`
- * replaces how `aspect` and `resolution` reach the body.
+ * replaces how `aspect` and `resolution` reach the body, and `name` is the route name request errors use.
  */
 export const model = (
-  input: MediaRoute.ModelInput & { readonly provider?: string; readonly sizing?: OpenAIImageSizing },
+  input: MediaRoute.ModelInput & {
+    readonly provider?: string
+    readonly sizing?: OpenAIImageSizing
+    readonly name?: string
+  },
 ) => {
-  const base = input.sizing === undefined ? protocol : makeProtocol(input.sizing)
+  const base =
+    input.sizing === undefined && input.name === undefined
+      ? protocol
+      : makeProtocol(
+          input.sizing ?? pixelSize,
+          input.name === undefined
+            ? route
+            : MediaProtocol.identity({ id: route.id, name: input.name, provider: input.provider ?? route.provider }),
+        )
   return ImageModel.fromRoute<OpenAIImageOptions, Frame, State>(
     {
       protocol: input.provider === undefined ? base : { ...base, provider: ProviderID.make(input.provider) },

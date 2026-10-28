@@ -22,6 +22,8 @@ export interface Limits {
   readonly maxPixels?: number
   /** Long edge over short edge. */
   readonly maxRatio?: number
+  /** A request above `maxEdge` or `maxPixels` renders at that maximum instead of failing. */
+  readonly upToMax?: boolean
 }
 
 export const isRequested = (shape: Shape) => shape.aspect !== undefined || shape.resolution !== undefined
@@ -72,8 +74,12 @@ export const nearest = (shape: Shape, sizes: ReadonlyArray<Size>): Size => {
 }
 
 /** Free width and height that must honor the shape; a size that misses it fails. */
-export const exact = (route: MediaProtocol.Identity, shape: Shape, limits: Limits) =>
-  accept(route, shape, fit(shape, limits))
+export const exact = (route: MediaProtocol.Identity, shape: Shape, limits: Limits) => {
+  const size = fit(shape, limits)
+  // Scaled down to the provider's maximum, the size only has to keep the aspect.
+  const capped = limits.upToMax === true && size.width * size.height < targetPixels(shape) && isRequested(shape)
+  return accept(route, capped ? { aspect: shape.aspect ?? "1:1" } : shape, size)
+}
 
 /** The size a provider renders for the shape, kept only when it is close enough; a size that misses it fails. */
 export const accept = (

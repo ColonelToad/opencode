@@ -694,8 +694,8 @@ this table before swapping only the `model`:
 
 ✓ lowers natively; ✗ fails whenever the field is set (including `n: 1`); `1` means `n > 1` fails. "width × height"
 computes a size the provider accepts and fails when the request falls outside its limits. ¹ `Image.stream` on OpenAI
-generates one image. On OpenAI, `gpt-image-2` and later get a computed size; older models get the nearest of their
-fixed sizes. `providerOptions.size` replaces `aspect` and `resolution`, so setting both fails. Vercel AI Gateway
+generates one image. On OpenAI, `gpt-image-2` and later get a computed size, and `4K` gets their largest (3840x2160
+at 16:9); older models get the nearest of their fixed sizes. `providerOptions.size` replaces `aspect` and `resolution`, so setting both fails. Vercel AI Gateway
 forwards `outputFormat` but does not apply it, so the returned bytes keep the upstream model's own format. ² Workers AI
 `@cf/black-forest-labs/flux-1-schnell` takes no size, so `aspect` and `resolution` fail there. ³ Non-OpenAI gateway
 models (`bfl/flux-2-pro`) get a computed width × height, which the gateway passes through; models with a fixed list,

@@ -248,7 +248,14 @@ export const configure = (input: Config = {}) => {
   }
   const media = MediaRoute.deployment({ ...input, baseURL: configured.endpoint.baseURL }, configured.auth)
   const image = (modelID: string | ModelID, providerOptions?: ProviderOptions) =>
-    OpenAIImages.model({ ...media, id: modelID, provider: id, providerOptions, sizing: imageSizing })
+    OpenAIImages.model({
+      ...media,
+      id: modelID,
+      provider: id,
+      providerOptions,
+      sizing: imageSizing,
+      name: "Vercel AI Gateway Images",
+    })
   const decisionRoute = OpenAIDecisions.route.with({
     provider: id,
     endpoint: { baseURL: configured.endpoint.baseURL },
