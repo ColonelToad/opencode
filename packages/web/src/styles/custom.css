@@ -309,8 +309,19 @@ ol {
   padding-inline-start: 1.5rem !important;
 }
 
+/* Starlight 0.41 draws the tab underline with `--sl-tab-color-border` and adds top padding with a tighter line height. */
+.sl-markdown-content .tab > [role="tab"] {
+  padding-top: 0;
+  line-height: var(--sl-line-height);
+}
+
 .sl-markdown-content .tab > [role="tab"][aria-selected="true"] {
-  border-color: var(--color-text-strong);
+  --sl-tab-color-border: var(--color-text-strong);
+}
+
+/* Starlight 0.41 also spaces a nested list that ends a list item; earlier versions didn't. */
+.sl-markdown-content li > :is(ul, ol):last-child {
+  margin-bottom: 0;
 }
 
 .social-icons a svg {
@@ -438,4 +449,16 @@ nav.sidebar ul.top-level > li > details > summary .group-label > span {
     font-weight: var(--shiki-dark-font-weight) !important;
     text-decoration: var(--shiki-dark-text-decoration) !important;
   }
+}
+
+/* Starlight 0.41 relaxed this to `break-word`, so long inline code no longer shrinks: tables reflow and asides overflow on phones. Keep the earlier wrapping. */
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+code {
+  overflow-wrap: anywhere;
 }
