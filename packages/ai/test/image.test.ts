@@ -4,9 +4,12 @@ import { HttpClientRequest } from "effect/http"
 import { Image, ImageClient, Media } from "../src/effect.js"
 import {
   BlackForestLabs,
+  CloudflareWorkersAI,
   Fal,
   Google,
+  Meta,
   OpenAI,
+  OpenRouter,
   Replicate,
   Stability,
   VercelAIGateway,
@@ -273,14 +276,20 @@ describe("Image", () => {
     ),
   )
 
-  it.effect("lowers aspect to the nearest OpenAI size", () =>
+  it.effect("lowers aspect to a listed OpenAI size only when it matches", () =>
     Effect.gen(function* () {
       const openai = OpenAI.configure({ apiKey: "test", baseURL: "https://openai.test/v1" })
-      const response = yield* Image.generate({
-        model: openai.image("gpt-image-1.5"),
+      yield* Image.generate({ model: openai.image("gpt-image-1.5"), prompt: "A lighthouse", aspect: "3:2" })
+      const missed = yield* Image.generate({
+        model: openai.image("gpt-image-1-mini"),
         prompt: "A lighthouse",
         aspect: "16:9",
-      })
+        resolution: "2K",
+      }).pipe(Effect.flip)
+      expect(missed.reason._tag).toBe("UnsupportedOperation")
+      expect(missed.message).toContain(
+        "OpenAI Images can't render 16:9 at 2K; the closest size it takes is 1536x1024 (3:2)",
+      )
       const conflict = yield* Image.generate({
         model: openai.image("gpt-image-2"),
         prompt: "A lighthouse",
@@ -320,6 +329,170 @@ describe("Image", () => {
       ),
     ),
   )
+
+  describe("sizing per provider", () => {
+    // Each case answers with the provider's minimal success shape after checking the body it was sent.
+    const sent = (expected: Record<string, unknown>, response: unknown) =>
+      layer((input) => {
+        expect(JSON.parse(input.text)).toMatchObject(expected)
+        return Effect.succeed(json(input, response))
+      })
+    const OPENAI_STYLE = { data: [{ b64_json: "AQID" }] }
+    const prompt = "A lighthouse"
+
+    it.effect("sends gpt-image-2 the exact size it renders", () =>
+      Image.generate({
+        model: OpenAI.configure({ apiKey: "test", baseURL: "https://openai.test/v1" }).image("gpt-image-2"),
+        prompt,
+        aspect: "16:9",
+        resolution: "2K",
+      }).pipe(Effect.provide(sent({ size: "2736x1536" }, OPENAI_STYLE))),
+    )
+
+    it.effect("sends OpenRouter an aspect ratio and resolution tier instead of pixels", () =>
+      Effect.gen(function* () {
+        const openrouter = OpenRouter.configure({ apiKey: "test", baseURL: "https://openrouter.test/v1" })
+        yield* Image.generate({
+          model: openrouter.image("google/gemini-3.1-flash-image"),
+          prompt,
+          aspect: "16:9",
+          resolution: "0.5K",
+        })
+        const error = yield* Image.generate({ model: openrouter.image("x/y"), prompt, resolution: "8K" }).pipe(
+          Effect.flip,
+        )
+        expect(error.message).toContain("can't render 8K; the closest resolution it takes is 4K")
+      }).pipe(
+        Effect.provide(
+          layer((input) => {
+            expect(JSON.parse(input.text)).toEqual({
+              model: "google/gemini-3.1-flash-image",
+              prompt,
+              aspect_ratio: "16:9",
+              resolution: "512",
+            })
+            return Effect.succeed(json(input, OPENAI_STYLE))
+          }),
+        ),
+      ),
+    )
+
+    it.effect("sizes Vercel AI Gateway Grok through xAI provider options", () =>
+      Image.generate({
+        model: VercelAIGateway.configure({ apiKey: "test", baseURL: "https://gateway.test/v1" }).image(
+          "spacexai/grok-imagine-image",
+        ),
+        prompt,
+        aspect: "16:9",
+        resolution: "2K",
+      }).pipe(
+        Effect.provide(
+          layer((input) => {
+            expect(JSON.parse(input.text)).toEqual({
+              model: "spacexai/grok-imagine-image",
+              prompt,
+              providerOptions: { xai: { aspect_ratio: "16:9", resolution: "2k" } },
+            })
+            return Effect.succeed(json(input, OPENAI_STYLE))
+          }),
+        ),
+      ),
+    )
+
+    it.effect("names Google's half tier 512", () =>
+      Image.generate({
+        model: Google.configure({ apiKey: "test", baseURL: "https://google.test/v1beta" }).image(
+          "gemini-3.1-flash-image",
+        ),
+        prompt,
+        aspect: "1:1",
+        resolution: "0.5K",
+      }).pipe(
+        Effect.provide(
+          sent(
+            { generationConfig: { imageConfig: { aspectRatio: "1:1", imageSize: "512" } } },
+            { candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/png", data: "AQID" } }] } }] },
+          ),
+        ),
+      ),
+    )
+
+    it.effect("sends FLUX 3 an aspect ratio, a lowercase tier and an images list", () =>
+      Image.start({
+        model: BlackForestLabs.configure({ apiKey: "test", baseURL: "https://bfl.test" }).image("flux-3-image"),
+        prompt,
+        aspect: "16:9",
+        resolution: "2K",
+        images: [Media.url("https://example.test/a.png"), Media.url("https://example.test/b.png")],
+      }).pipe(
+        Effect.provide(
+          layer((input) => {
+            expect(input.request.url).toBe("https://bfl.test/v1/flux-3-image")
+            expect(JSON.parse(input.text)).toEqual({
+              prompt,
+              aspect_ratio: "16:9",
+              resolution: "2k",
+              images: ["https://example.test/a.png", "https://example.test/b.png"],
+            })
+            return Effect.succeed(json(input, { id: "req_1", polling_url: "https://bfl.test/v1/get_result?id=req_1" }))
+          }),
+        ),
+      ),
+    )
+
+    it.effect("accepts a Meta resolution only near the size Meta renders", () =>
+      Effect.gen(function* () {
+        const meta = Meta.configure({ apiKey: "test", baseURL: "https://meta.test/v1" }).image("muse-image-1.0")
+        yield* Image.generate({ model: meta, prompt, aspect: "16:9", resolution: "2K" })
+        const error = yield* Image.generate({ model: meta, prompt, aspect: "16:9", resolution: "4K" }).pipe(Effect.flip)
+        expect(error.reason._tag).toBe("UnsupportedOperation")
+        expect(error.message).toStartWith(
+          "Meta Images can't render 16:9 at 4K; the closest size it takes is 2096x1184 (1.77:1)",
+        )
+      }).pipe(Effect.provide(sent({ size: "1360x768" }, OPENAI_STYLE))),
+    )
+
+    it.effect("fails sizes a provider can't come close to before sending", () =>
+      Effect.gen(function* () {
+        const errors = yield* Effect.all(
+          [
+            Image.generate({
+              model: XAI.configure({ apiKey: "test" }).image("grok-imagine-image"),
+              prompt,
+              resolution: "4K",
+            }),
+            Image.generate({
+              model: CloudflareWorkersAI.configure({ apiKey: "test", accountId: "acct" }).image(
+                "@cf/black-forest-labs/flux-1-schnell",
+              ),
+              prompt,
+              aspect: "16:9",
+            }),
+            Image.generate({
+              model: OpenAI.configure({ apiKey: "test" }).image("dall-e-3"),
+              prompt,
+              aspect: "1:1",
+              resolution: "4K",
+            }),
+          ].map((effect) => Effect.flip(effect)),
+        )
+        expect(errors.map((error) => [error.reason._tag, error.message])).toEqual([
+          [
+            "UnsupportedOperation",
+            "xAI Images can't render 4K; the closest resolution it takes is 2k. Change resolution, or set it in providerOptions",
+          ],
+          [
+            "UnsupportedOperation",
+            "@cf/black-forest-labs/flux-1-schnell takes no width or height; leave aspect and resolution unset",
+          ],
+          [
+            "UnsupportedOperation",
+            "OpenAI Images can't render 1:1 at 4K; the closest size it takes is 1024x1024 (1:1). Change aspect or resolution, or set the size in providerOptions",
+          ],
+        ])
+      }).pipe(Effect.provide(layer(() => Effect.die("no request should be sent")))),
+    )
+  })
 
   it.effect("preserves native snake_case and unknown request options", () =>
     Image.generate({

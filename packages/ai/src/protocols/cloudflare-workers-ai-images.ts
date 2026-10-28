@@ -17,6 +17,7 @@ const route = MediaProtocol.identity({
 /** FLUX.2 models only accept multipart form fields, even for a prompt alone. */
 const MULTIPART_MODEL_PREFIX = "@cf/black-forest-labs/flux-2-"
 const RESERVED_FORM_FIELDS = new Set(["prompt"])
+const FIXED_SIZE_MODEL_PREFIX = "@cf/black-forest-labs/flux-1-schnell"
 
 // ---------------------------------------------------------------------------
 // 1. Public model input
@@ -56,6 +57,11 @@ const RunResponse = Schema.Struct({
 const fromRequest = Effect.fn("CloudflareWorkersAIImages.fromRequest")(function* (request: Request) {
   if (request.n !== undefined && request.n > 1)
     return yield* route.unsupported("media.n", `${route.name} generates one image per request; call it once per image`)
+  if (request.model.id.startsWith(FIXED_SIZE_MODEL_PREFIX) && ImageSizing.isRequested(request))
+    return yield* route.unsupported(
+      request.resolution === undefined ? "media.aspect" : "media.resolution",
+      `${request.model.id} takes no width or height; leave aspect and resolution unset`,
+    )
   const fields = {
     prompt: request.prompt,
     ...(yield* ImageSizing.exact(route, request, { multiple: 16, minEdge: 256, maxEdge: 2048 })),

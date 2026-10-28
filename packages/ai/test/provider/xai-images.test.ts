@@ -19,7 +19,7 @@ describe("xAI Images", () => {
         prompt: "A robot tending a rooftop garden",
         n: 2,
         aspect: "16:9",
-        resolution: "4K",
+        resolution: "1.5K",
         providerOptions: {
           aspect_ratio: "4:3",
           responseFormat: "url",

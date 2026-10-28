@@ -631,7 +631,7 @@ const edit = Image.generate({
 
 The default image format is WEBP; `outputFormat` also accepts PNG/JPEG and `responseFormat: "url"`
 returns a signed URL. `aspect` lowers to Meta's `size`, which is only an aspect-ratio hint: Meta renders about 2.5
-megapixels whatever you ask, so `resolution` is ignored. For conversational images, select
+megapixels whatever you ask, so a `resolution` far from that (`1K`, `4K`) fails. For conversational images, select
 `meta.responses("muse-image-1.0")` with `tools: [Meta.imageGeneration({ reasoningStrength: "low" })]`.
 Generated images are provider-executed tool results with file content. Retain `response.message` to
 replay the signed image handle on the next request. Muse Image accepts only the `image_generation` tool.
@@ -671,19 +671,20 @@ const program = Effect.gen(function* () {
 })
 ```
 
-Common fields are portable in shape, not in support. Some routes approximate `aspect` or `resolution` with the nearest
-size they offer; others fail with a typed `AIError` before any network call rather than dropping them, so check this
-table before swapping only the `model`:
+Common fields are portable in shape, not in support. A route that can't render the exact request sends the nearest
+size or tier it offers only when that is within 2% of the aspect and √2 per edge of the tier; otherwise, or when it
+doesn't take the field at all, it fails with a typed `AIError` before any network call rather than dropping it. Check
+this table before swapping only the `model`:
 
 | Provider              | `n` | `aspect`             | `resolution`          | `images`                         | Moved to `providerOptions`                         |
 | --------------------- | --- | -------------------- | --------------------- | -------------------------------- | -------------------------------------------------- |
 | OpenAI                | ✓¹  | nearest size         | nearest size          | ✓                                | `size`, `outputFormat`, `mask`                     |
-| Google (Gemini)       | 1   | ✓                    | ✓ (`imageSize`)       | ✓ (no public URLs)               | `seed`                                             |
+| Google (Gemini)       | 1   | ✓                    | `512`/`1K`/`2K`/`4K`  | ✓ (no public URLs)               | `seed`                                             |
 | xAI                   | ✓   | ✓                    | `1k`/`2k`             | ✓                                | none                                               |
-| Meta                  | ✓   | ✓ (hint)             | ignored               | ✓                                | `size`, `outputFormat`                             |
+| Meta                  | ✓   | ✓ (hint)             | about 2.5 MP only     | ✓                                | `size`, `outputFormat`                             |
 | Z.ai                  | ✗   | width × height       | width × height        | ✗                                | `size`                                             |
 | Alibaba               | ✓   | width × height       | width × height        | ✓                                | `size`, `seed`                                     |
-| Black Forest Labs     | 1   | per model            | width × height models | per model (1–8)                  | `width`, `height`, `seed`, `output_format`, `mask` |
+| Black Forest Labs     | 1   | per model            | per model             | per model (1–10)                 | `width`, `height`, `seed`, `output_format`, `mask` |
 | fal                   | ✓   | per model            | per model             | 1 (several on `/edit`, `/multi`) | `image_size`, `seed`, `output_format`, `mask`      |
 | Replicate             | ✗   | ✗                    | ✗                     | ✗ (use `providerOptions`)        | everything                                         |
 | Stability `image`     | 1   | ✓                    | ✗                     | 1 (not on `core`)                | `seed`, `output_format`                            |
@@ -696,9 +697,11 @@ computes a size the provider accepts and fails when the request falls outside it
 generates one image. On OpenAI, `gpt-image-2` and later get a computed size; older models get the nearest of their
 fixed sizes. `providerOptions.size` replaces `aspect` and `resolution`, so setting both fails. Vercel AI Gateway
 forwards `outputFormat` but does not apply it, so the returned bytes keep the upstream model's own format. ² Workers AI
-`@cf/black-forest-labs/flux-1-schnell` takes no size, and the provider rejects it. ³ Non-OpenAI gateway models
-(`bfl/flux-2-pro`) get a computed width × height, which the gateway passes through; models with a fixed list, such as
-Recraft, reject sizes outside it.
+`@cf/black-forest-labs/flux-1-schnell` takes no size, so `aspect` and `resolution` fail there. ³ Non-OpenAI gateway
+models (`bfl/flux-2-pro`) get a computed width × height, which the gateway passes through; models with a fixed list,
+such as Recraft, reject sizes outside it. Grok (`spacexai/*`) ignores `size`, so it gets `providerOptions.xai`
+`aspect_ratio` and `1k`/`2k` instead. OpenRouter takes `aspect_ratio` plus a tier (`512`, `768`, `1K`, `1.5K`, `2K`,
+`4K`) rather than pixels. FLUX 3 on Black Forest Labs takes `aspect_ratio` plus `768sq`/`1k`/`1.5k`/`2k`/`4k`.
 
 `Media.Asset` is the one asset type shared by image requests, image responses, LLM messages, and tool results.
 `asset.source` is the serializable `Media.Source` (`bytes`, `base64`, `url`, or `ref`); `asset.bytes()`,

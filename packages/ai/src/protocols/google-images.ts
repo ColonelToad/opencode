@@ -6,6 +6,7 @@ import { MediaRoute } from "../route/media.js"
 import { mergeJsonRecords, tokenUsage, type OpenString } from "../schema/index.js"
 import { ProviderShared } from "./shared.js"
 import { GeminiGenerateContent } from "./utils/gemini-generate-content.js"
+import { ImageSizing } from "./utils/image-sizing.js"
 import { MediaInput } from "./utils/media-input.js"
 
 const route = MediaProtocol.identity({ id: "google-images", name: "Google Images", provider: "google" })
@@ -81,9 +82,17 @@ const GoogleImageResponse = Schema.Struct({
 // 5. Request body construction
 // ---------------------------------------------------------------------------
 
-const generationConfig = (request: Request) => {
+/** Google names the half tier `512` and rejects `0.5K`. */
+const TIERS = [
+  { value: "512", tier: 0.5 },
+  { value: "1K", tier: 1 },
+  { value: "2K", tier: 2 },
+  { value: "4K", tier: 4 },
+]
+
+const generationConfig = (request: Request, imageSize: string | undefined) => {
   const { thinkingLevel, includeThoughts, ...native } = request.providerOptions ?? {}
-  const imageConfig = { aspectRatio: request.aspect, imageSize: request.resolution }
+  const imageConfig = { aspectRatio: request.aspect, imageSize }
   const thinkingConfig = { thinkingLevel, includeThoughts }
   return (
     mergeJsonRecords(
@@ -110,7 +119,7 @@ const fromRequest = Effect.fn("GoogleImages.fromRequest")(function* (request: Re
     mergeJsonRecords(
       {
         contents: [{ role: "user", parts: [{ text: request.prompt }, ...parts] }],
-        generationConfig: generationConfig(request),
+        generationConfig: generationConfig(request, yield* ImageSizing.resolution(route, request, TIERS)),
       },
       request.http?.body,
     ) ?? {},

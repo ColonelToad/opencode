@@ -1,5 +1,6 @@
 import { Effect } from "effect"
 import type { MediaProtocol } from "../../route/media-protocol.js"
+import type { AIError } from "../../schema/index.js"
 
 export interface Size {
   readonly width: number
@@ -71,15 +72,62 @@ export const nearest = (shape: Shape, sizes: ReadonlyArray<Size>): Size => {
 }
 
 /** Free width and height that must honor the shape; a size that misses it fails. */
-export const exact = (route: MediaProtocol.Identity, shape: Shape, limits: Limits) => {
+export const exact = (route: MediaProtocol.Identity, shape: Shape, limits: Limits) =>
+  accept(route, shape, fit(shape, limits))
+
+/** The size a provider renders for the shape, kept only when it is close enough; a size that misses it fails. */
+export const accept = (
+  route: MediaProtocol.Identity,
+  shape: Shape,
+  size: Size,
+): Effect.Effect<Size | undefined, AIError> => {
   if (!isRequested(shape)) return Effect.succeed(undefined)
-  const size = fit(shape, limits)
   const requested = missed(shape, size)
   if (requested === undefined) return Effect.succeed(size)
   return Effect.fail(
     route.unsupported(
       shape.resolution === undefined ? "media.aspect" : "media.resolution",
       `${route.name} can't render ${requested}; the closest size it takes is ${describe(size)}. Change aspect or resolution, or set the size in providerOptions`,
+    ),
+  )
+}
+
+/** The size at a fixed pixel count, for providers that pick their own resolution and only follow the aspect. */
+export const atPixels = (shape: Shape, pixels: number, multiple: number): Size => {
+  const ratio = aspectRatio(shape)
+  const snap = (edge: number) => Math.max(multiple, Math.round(edge / multiple) * multiple)
+  return { width: snap(Math.sqrt(pixels * ratio)), height: snap(Math.sqrt(pixels / ratio)) }
+}
+
+/** A provider's named resolution: `value` is what it takes, `tier` its size in K (`512` is 0.5). */
+export interface Tier {
+  readonly value: string
+  readonly tier: number
+}
+
+/**
+ * The provider's value for the requested resolution: a value it names as is, otherwise its nearest tier when that is
+ * within √2 per edge. Anything further off fails.
+ */
+export const resolution = (
+  route: MediaProtocol.Identity,
+  shape: Shape,
+  tiers: ReadonlyArray<Tier>,
+): Effect.Effect<string | undefined, AIError> => {
+  const requested = shape.resolution
+  if (requested === undefined) return Effect.succeed(undefined)
+  const named = tiers.find((item) => item.value.toLowerCase() === requested.toLowerCase())
+  if (named !== undefined) return Effect.succeed(named.value)
+  const size = tier(requested)
+  const distance = (item: Tier) => (size === undefined ? Infinity : Math.abs(Math.log2(item.tier / size)))
+  const closest = tiers.reduce((best, item) => (distance(item) < distance(best) ? item : best))
+  if (distance(closest) <= 0.5) return Effect.succeed(closest.value)
+  return Effect.fail(
+    route.unsupported(
+      "media.resolution",
+      size === undefined
+        ? `${route.name} can't render ${requested}; it takes ${tiers.map((item) => item.value).join(", ")}`
+        : `${route.name} can't render ${requested}; the closest resolution it takes is ${closest.value}. Change resolution, or set it in providerOptions`,
     ),
   )
 }

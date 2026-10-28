@@ -16,7 +16,7 @@ export const DEFAULT_BASE_URL = "https://api.bfl.ai"
 // 1. Public model input
 // ---------------------------------------------------------------------------
 
-/** Native body fields; `aspect` and `resolution` lower to `width`/`height` or `aspect_ratio` depending on the model. */
+/** Native body fields; `aspect` and `resolution` lower to `width`/`height`, `aspect_ratio` or a tier per model. */
 export type BlackForestLabsImageOptions = {
   readonly width?: number
   readonly height?: number
@@ -86,9 +86,10 @@ const isModerated = (status: string) => status === "Content Moderated" || status
 // ---------------------------------------------------------------------------
 
 interface Capabilities {
-  readonly sizing: ImageSizing.Limits | "aspectRatio" | "none"
-  /** `input_image` numbers extra references `input_image_2`…; the other fields take one image. */
-  readonly imageField: "input_image" | "image_prompt" | "image"
+  /** `tiers` sends `aspect_ratio` plus a named resolution tier. */
+  readonly sizing: ImageSizing.Limits | "aspectRatio" | "tiers" | "none"
+  /** `input_image` numbers extra references `input_image_2`…; `images` is a list; the other fields take one image. */
+  readonly imageField: "input_image" | "image_prompt" | "image" | "images"
   readonly maxImages: number
   readonly mask: boolean
 }
@@ -96,7 +97,17 @@ interface Capabilities {
 const LEGACY_LIMITS = { multiple: 32, minEdge: 256, maxEdge: 1440 }
 const FLUX_2_LIMITS = { multiple: 16, minEdge: 64, maxPixels: 4_194_304 }
 
+/** FLUX 3 takes resolution as an equal-area tier; `768sq` is about 768x768. */
+const FLUX_3_TIERS = [
+  { value: "768sq", tier: 0.75 },
+  { value: "1k", tier: 1 },
+  { value: "1.5k", tier: 1.5 },
+  { value: "2k", tier: 2 },
+  { value: "4k", tier: 4 },
+]
+
 const capabilities = (model: string): Capabilities => {
+  if (model.startsWith("flux-3-")) return { sizing: "tiers", imageField: "images", maxImages: 10, mask: false }
   if (model.startsWith("flux-pro-1.0-fill")) return { sizing: "none", imageField: "image", maxImages: 1, mask: true }
   if (model.startsWith("flux-pro-1.0-expand")) return { sizing: "none", imageField: "image", maxImages: 1, mask: false }
   if (model.startsWith("flux-kontext"))
@@ -117,7 +128,7 @@ const validate = (request: Request, model: Capabilities) => {
     return Effect.fail(route.unsupported("media.n", `${id} generates one image per request; call it once per image`))
   if (request.aspect !== undefined && model.sizing === "none")
     return Effect.fail(route.unsupported("media.aspect", `${id} keeps the source image's size`))
-  if (request.resolution !== undefined && typeof model.sizing === "string")
+  if (request.resolution !== undefined && (model.sizing === "aspectRatio" || model.sizing === "none"))
     return Effect.fail(route.unsupported("media.resolution", `${id} does not take resolution`))
   if (images > model.maxImages)
     return Effect.fail(route.unsupported("media.images", `${id} takes at most ${model.maxImages} images`))
@@ -137,10 +148,12 @@ const fromRequest = Effect.fn("BlackForestLabsImages.fromRequest")(function* (re
   const model = capabilities(request.model.id)
   yield* validate(request, model)
   const images = yield* Effect.forEach(request.images ?? [], imageInput)
-  const fields = images.map((image, index) => [
-    index === 0 ? model.imageField : `${model.imageField}_${index + 1}`,
-    image,
-  ])
+  const fields =
+    model.imageField === "images"
+      ? { images: images.length === 0 ? undefined : images }
+      : Object.fromEntries(
+          images.map((image, index) => [index === 0 ? model.imageField : `${model.imageField}_${index + 1}`, image]),
+        )
   const { mask, ...native } = request.providerOptions ?? {}
   const size = typeof model.sizing === "string" ? undefined : yield* ImageSizing.exact(route, request, model.sizing)
   return MediaProtocol.json(
@@ -148,9 +161,10 @@ const fromRequest = Effect.fn("BlackForestLabsImages.fromRequest")(function* (re
       {
         prompt: request.prompt,
         ...size,
-        aspect_ratio: model.sizing === "aspectRatio" ? request.aspect : undefined,
+        aspect_ratio: model.sizing === "aspectRatio" || model.sizing === "tiers" ? request.aspect : undefined,
+        resolution: model.sizing === "tiers" ? yield* ImageSizing.resolution(route, request, FLUX_3_TIERS) : undefined,
         mask: mask === undefined ? undefined : yield* imageInput(mask),
-        ...Object.fromEntries(fields),
+        ...fields,
       },
       native,
       request.http?.body,

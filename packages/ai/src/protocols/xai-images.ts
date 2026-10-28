@@ -52,11 +52,17 @@ const nativeOptions = (options: XAIImageOptions | undefined) => {
   return { response_format: responseFormat, ...native }
 }
 
-/** xAI renders `1k` or `2k`; other tiers use the nearest one. */
-const resolution = (request: Request) => {
-  if (request.resolution === undefined) return undefined
-  return (ImageSizing.tier(request.resolution) ?? 1) < 1.5 ? "1k" : "2k"
-}
+/** xAI renders `1k` or `2k`; a tier within √2 per edge of one uses it, anything else fails. */
+export const TIERS = [
+  { value: "1k", tier: 1 },
+  { value: "2k", tier: 2 },
+]
+
+/** `aspect_ratio` and `resolution` as xAI takes them; the Vercel AI Gateway forwards them under `providerOptions.xai`. */
+export const sizing = (route: MediaProtocol.Identity, request: ImageSizing.Shape) =>
+  ImageSizing.resolution(route, request, TIERS).pipe(
+    Effect.map((resolution) => ({ aspect_ratio: request.aspect, resolution })),
+  )
 
 const isEdit = (request: Request) => (request.images?.length ?? 0) > 0
 
@@ -69,6 +75,7 @@ const reference = (asset: Media.Asset) =>
 
 const fromRequest = Effect.fn("XAIImages.fromRequest")(function* (request: Request) {
   const references = yield* Effect.forEach(request.images ?? [], reference)
+  const size = yield* sizing(route, request)
   return MediaProtocol.json(
     mergeJsonRecords(
       {
@@ -78,8 +85,7 @@ const fromRequest = Effect.fn("XAIImages.fromRequest")(function* (request: Reque
         image: references.length === 1 ? references[0] : undefined,
         images: references.length > 1 ? references : undefined,
         n: request.n,
-        aspect_ratio: request.aspect,
-        resolution: resolution(request),
+        ...size,
       },
       nativeOptions(request.providerOptions),
       request.http?.body,
@@ -133,4 +139,5 @@ export const model = (input: MediaRoute.ModelInput) =>
 export const XAIImages = {
   protocol,
   model,
+  sizing,
 } as const

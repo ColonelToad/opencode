@@ -17,8 +17,8 @@ export const DEFAULT_BASE_URL = "https://api.meta.ai/v1"
 // ---------------------------------------------------------------------------
 
 /**
- * Provider-native options. Common fields (`n`, `aspect`, `images`) live on the request; Meta picks its own output
- * resolution (about 2.5 megapixels), so `resolution` is ignored.
+ * Provider-native options. Common fields (`n`, `aspect`, `resolution`, `images`) live on the request. Meta picks its own
+ * output resolution (about 2.5 megapixels), so a `resolution` too far from that fails.
  */
 export type ImageOptions = {
   /** `WIDTHxHEIGHT` aspect ratio hint; it replaces `aspect`, so setting both fails. */
@@ -72,6 +72,9 @@ const Response = Schema.Struct({
 // 5. Request body construction
 // ---------------------------------------------------------------------------
 
+/** Meta renders about 2.48 megapixels at any aspect, such as 2096x1184 for 16:9. */
+const RENDERED_PIXELS = 2_480_000
+
 const isEdit = (request: Request) => (request.images?.length ?? 0) > 0
 
 // Meta has no file handles: refs are rejected even when they name this provider.
@@ -83,6 +86,7 @@ const fromRequest = Effect.fn("MetaImages.fromRequest")(function* (request: Requ
   const { outputFormat, responseFormat, reasoningStrength, toolEnablement, ...native } = request.providerOptions ?? {}
   if (native.size !== undefined && request.aspect !== undefined)
     return yield* ProviderShared.invalidRequest("Meta providerOptions.size replaces aspect; set one or the other")
+  yield* ImageSizing.accept(route, request, ImageSizing.atPixels(request, RENDERED_PIXELS, 16))
   const hint = request.aspect === undefined ? undefined : ImageSizing.fit({ aspect: request.aspect }, { multiple: 16 })
   const payload = yield* ProviderShared.validateWith(Schema.decodeUnknownEffect(Body))(
     mergeJsonRecords(
