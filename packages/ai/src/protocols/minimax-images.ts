@@ -20,7 +20,7 @@ const OUTPUT_RETENTION = Duration.hours(24)
 
 /** Provider-native options. Common `aspect` and `resolution` lower to `aspect_ratio` or `width` and `height`. */
 export type MiniMaxImageOptions = {
-  /** `url` (the default) links expire after 24 hours; `base64` returns the bytes inline. */
+  /** Defaults to `base64`, which returns the bytes inline; `url` links expire after 24 hours. */
   readonly responseFormat?: OpenString<"url" | "base64">
   readonly seed?: number
   readonly promptOptimizer?: boolean
@@ -86,10 +86,9 @@ const PRESETS: Record<string, ImageSizing.Size> = {
 
 const LIMITS = { multiple: 8, minEdge: 512, maxEdge: 2048 }
 
-const nativeOptions = (options: MiniMaxImageOptions | undefined) => {
-  if (!options) return undefined
+const nativeOptions = (options: MiniMaxImageOptions = {}) => {
   const { responseFormat, promptOptimizer, ...native } = options
-  return { response_format: responseFormat, prompt_optimizer: promptOptimizer, ...native }
+  return { response_format: responseFormat ?? "base64", prompt_optimizer: promptOptimizer, ...native }
 }
 
 /** `image-01-live` rejects `21:9`. */

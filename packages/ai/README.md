@@ -842,13 +842,14 @@ const minimax = Image.generate({
   n: 2,
   aspect: "16:9",
   images: [Media.url("https://example.com/portrait.jpg")], // optional subject reference
-  providerOptions: { responseFormat: "base64", promptOptimizer: true, seed: 42 },
+  providerOptions: { promptOptimizer: true, seed: 42 },
 })
 ```
 
-The reference image is sent as a `character` subject, so it should be a single front-facing portrait. Output URLs
-(the default `responseFormat`) expire after 24 hours and carry no MIME type until materialized; `base64` returns the
-bytes inline. MiniMax status codes map to typed errors; code 1026 is a `ContentPolicy` error.
+The reference image is sent as a `character` subject, so it should be a single front-facing portrait. Images come
+back inline (`responseFormat: "base64"` by default); `responseFormat: "url"` returns links that expire after 24 hours
+and carry no MIME type until materialized. MiniMax status codes map to typed errors; code 1026 is a `ContentPolicy`
+error.
 
 ### Partial images
 

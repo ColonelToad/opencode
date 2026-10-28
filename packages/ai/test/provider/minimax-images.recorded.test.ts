@@ -22,7 +22,6 @@ describe("MiniMax Images recorded", () => {
         prompt: "A simple flat red circle centered on a plain white background.",
         aspect: "1:1",
         resolution: "0.5K",
-        providerOptions: { responseFormat: "base64" },
       })
 
       expect(response.images).toHaveLength(1)
@@ -44,7 +43,6 @@ describe("MiniMax Images recorded", () => {
           ),
         ],
         resolution: "0.5K",
-        providerOptions: { responseFormat: "base64" },
       })
 
       expect(response.images).toHaveLength(1)

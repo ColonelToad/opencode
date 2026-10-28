@@ -113,6 +113,13 @@ describe("MiniMax Images", () => {
     ),
   )
 
+  it.effect("asks for base64 by default and keeps an explicit url format", () =>
+    Effect.gen(function* () {
+      expect(yield* sent({})).toEqual({ model: "image-01", prompt: "test", response_format: "base64" })
+      expect(yield* sent({ providerOptions: { responseFormat: "url" } })).toMatchObject({ response_format: "url" })
+    }),
+  )
+
   it.effect("sends inline subject references as data URLs", () =>
     Effect.gen(function* () {
       expect(yield* sent({ images: [Media.bytes(Uint8Array.from([1, 2, 3]), "image/png")] })).toMatchObject({
