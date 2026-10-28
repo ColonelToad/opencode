@@ -699,9 +699,9 @@ fixed sizes. `providerOptions.size` replaces `aspect` and `resolution`, so setti
 forwards `outputFormat` but does not apply it, so the returned bytes keep the upstream model's own format. ² Workers AI
 `@cf/black-forest-labs/flux-1-schnell` takes no size, so `aspect` and `resolution` fail there. ³ Non-OpenAI gateway
 models (`bfl/flux-2-pro`) get a computed width × height, which the gateway passes through; models with a fixed list,
-such as Recraft, reject sizes outside it. Grok (`spacexai/*`) ignores `size`, so it gets `providerOptions.xai`
-`aspect_ratio` and `1k`/`2k` instead. OpenRouter takes `aspect_ratio` plus a tier (`512`, `768`, `1K`, `1.5K`, `2K`,
-`4K`) rather than pixels. FLUX 3 on Black Forest Labs takes `aspect_ratio` plus `768sq`/`1k`/`1.5k`/`2k`/`4k`.
+such as Recraft, reject sizes outside it. Grok (`spacexai/*` or `xai/*`) ignores `size`, so it gets
+`providerOptions.xai` `aspect_ratio` and `1k`/`2k` instead. OpenRouter takes `aspect_ratio` plus a tier (`512`, `768`,
+`1K`, `1.5K`, `2K`, `4K`) rather than pixels. FLUX 3 on Black Forest Labs takes `aspect_ratio` plus `768sq`/`1k`/`1.5k`/`2k`/`4k`.
 
 `Media.Asset` is the one asset type shared by image requests, image responses, LLM messages, and tool results.
 `asset.source` is the serializable `Media.Source` (`bytes`, `base64`, `url`, or `ref`); `asset.bytes()`,

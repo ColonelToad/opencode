@@ -377,27 +377,26 @@ describe("Image", () => {
       ),
     )
 
-    it.effect("sizes Vercel AI Gateway Grok through xAI provider options", () =>
-      Image.generate({
-        model: VercelAIGateway.configure({ apiKey: "test", baseURL: "https://gateway.test/v1" }).image(
-          "spacexai/grok-imagine-image",
+    for (const modelID of ["spacexai/grok-imagine-image", "xai/grok-imagine-image"])
+      it.effect(`sizes Vercel AI Gateway ${modelID} through xAI provider options`, () =>
+        Image.generate({
+          model: VercelAIGateway.configure({ apiKey: "test", baseURL: "https://gateway.test/v1" }).image(modelID),
+          prompt,
+          aspect: "16:9",
+          resolution: "2K",
+        }).pipe(
+          Effect.provide(
+            layer((input) => {
+              expect(JSON.parse(input.text)).toEqual({
+                model: modelID,
+                prompt,
+                providerOptions: { xai: { aspect_ratio: "16:9", resolution: "2k" } },
+              })
+              return Effect.succeed(json(input, OPENAI_STYLE))
+            }),
+          ),
         ),
-        prompt,
-        aspect: "16:9",
-        resolution: "2K",
-      }).pipe(
-        Effect.provide(
-          layer((input) => {
-            expect(JSON.parse(input.text)).toEqual({
-              model: "spacexai/grok-imagine-image",
-              prompt,
-              providerOptions: { xai: { aspect_ratio: "16:9", resolution: "2k" } },
-            })
-            return Effect.succeed(json(input, OPENAI_STYLE))
-          }),
-        ),
-      ),
-    )
+      )
 
     it.effect("names Google's half tier 512", () =>
       Image.generate({

@@ -216,7 +216,7 @@ export const routes = [messagesRoute, responsesRoute, chatRoute]
 // The Gateway passes `size` through to most image models, but Grok ignores it and renders 1024x1024; it only reads
 // sizing from `providerOptions.xai`.
 const imageSizing: OpenAIImageSizing = (request, route) => {
-  if (!request.model.id.startsWith("spacexai/")) return OpenAIImages.pixelSize(request, route)
+  if (!/^(spacexai|xai)\//.test(request.model.id)) return OpenAIImages.pixelSize(request, route)
   if (!ImageSizing.isRequested(request)) return Effect.succeed(undefined)
   return XAIImages.sizing(route, request).pipe(Effect.map((xai) => ({ providerOptions: { xai } })))
 }
