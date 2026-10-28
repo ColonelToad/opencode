@@ -39,7 +39,8 @@ export const configure = (input: Config) => {
   return {
     id: ProviderID.make(provider),
     model: (modelID: string | ModelID) => route.model<OpenAIProviderOptionsInput>({ id: modelID }),
-    // Many compatible hosts default to hosted URLs. GPT Image models always return bytes and reject the field.
+    // Many compatible hosts default to hosted URLs. GPT Image models always return bytes and reject the field; a
+    // proxy serving one under another name can drop the default with `response_format: null`.
     image: (modelID: string | ModelID, providerOptions?: ProviderOptions) =>
       OpenAIImages.model({
         ...media,

@@ -188,6 +188,7 @@ describe("Image", () => {
       yield* generate(compatible.image("flux-schnell"))
       yield* generate(compatible.image("flux-schnell"), { response_format: "url" })
       yield* generate(compatible.image("openai/gpt-image-2"))
+      yield* generate(compatible.image("image-alias"), { response_format: null })
       yield* generate(xai.image("grok-imagine-image"))
       yield* generate(xai.image("grok-imagine-image"), { responseFormat: "url" })
 
@@ -195,6 +196,7 @@ describe("Image", () => {
         { model: "flux-schnell", prompt: "A lighthouse", response_format: "b64_json" },
         { model: "flux-schnell", prompt: "A lighthouse", response_format: "url" },
         { model: "openai/gpt-image-2", prompt: "A lighthouse" },
+        { model: "image-alias", prompt: "A lighthouse" },
         { model: "grok-imagine-image", prompt: "A lighthouse", response_format: "b64_json" },
         { model: "grok-imagine-image", prompt: "A lighthouse", response_format: "url" },
       ])

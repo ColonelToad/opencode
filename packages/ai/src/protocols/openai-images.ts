@@ -141,7 +141,13 @@ const RESERVED_FORM_FIELDS = new Set(["model", "prompt", "image", "image[]", "im
 const nativeOptions = (options: OpenAIImageOptions | undefined) => {
   if (!options) return undefined
   const { outputCompression, outputFormat, partialImages: _, mask: __, ...native } = options
-  return { output_compression: outputCompression, output_format: outputFormat, ...native }
+  // `response_format: null` drops a provider's default, for hosts that reject the field.
+  return {
+    output_compression: outputCompression,
+    output_format: outputFormat,
+    ...native,
+    response_format: native.response_format ?? undefined,
+  }
 }
 
 /**
