@@ -770,7 +770,7 @@ const xai = Image.generate({
   aspect: "16:9",
   resolution: "1K",
   providerOptions: {
-    responseFormat: "b64_json",
+    responseFormat: "url", // defaults to "b64_json" (inline bytes)
     future_option: true,
   },
   http,

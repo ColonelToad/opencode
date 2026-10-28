@@ -25,6 +25,8 @@ export type FalImageOptions = {
   /** Inpainting mask, sent as `mask_url`. */
   readonly mask?: Media.Asset
   readonly enable_safety_checker?: boolean
+  /** Defaults to `true`, which returns images inline as data URIs; `false` returns hosted URLs. */
+  readonly sync_mode?: boolean
 } & Record<string, unknown>
 
 export type Request = ImageRequestFor<FalImageOptions>
@@ -96,6 +98,7 @@ const fromRequest = Effect.fn("FalImages.fromRequest")(function* (request: Reque
         image_urls: list && images.length > 0 ? images : undefined,
         image_url: list ? undefined : images[0],
         mask_url: mask === undefined ? undefined : yield* FalQueue.mediaUrl(mask, route.name),
+        sync_mode: true,
       },
       native,
       request.http?.body,

@@ -7,6 +7,7 @@ import {
   Fal,
   Google,
   OpenAI,
+  OpenAICompatible,
   Replicate,
   Stability,
   VercelAIGateway,
@@ -166,6 +167,37 @@ describe("Image", () => {
         mediaType: "image/jpeg",
       })
       expect(response.providerMetadata).toEqual({ openai: {} })
+    }),
+  )
+
+  it.effect("requests inline bytes by default where hosts would return URLs", () =>
+    Effect.gen(function* () {
+      const bodies: Array<unknown> = []
+      const compatible = OpenAICompatible.configure({ apiKey: "test", baseURL: "https://compatible.test/v1" })
+      const xai = XAI.configure({ apiKey: "test", baseURL: "https://api.xai.test/v1" })
+      const generate = (model: Parameters<typeof Image.generate>[0]["model"], providerOptions?: Record<string, unknown>) =>
+        Image.generate({ model, prompt: "A lighthouse", providerOptions }).pipe(
+          Effect.provide(
+            layer((input) => {
+              bodies.push(JSON.parse(input.text))
+              return Effect.succeed(json(input, { data: [{ b64_json: "AQID" }] }))
+            }),
+          ),
+        )
+
+      yield* generate(compatible.image("flux-schnell"))
+      yield* generate(compatible.image("flux-schnell"), { response_format: "url" })
+      yield* generate(compatible.image("openai/gpt-image-2"))
+      yield* generate(xai.image("grok-imagine-image"))
+      yield* generate(xai.image("grok-imagine-image"), { responseFormat: "url" })
+
+      expect(bodies).toEqual([
+        { model: "flux-schnell", prompt: "A lighthouse", response_format: "b64_json" },
+        { model: "flux-schnell", prompt: "A lighthouse", response_format: "url" },
+        { model: "openai/gpt-image-2", prompt: "A lighthouse" },
+        { model: "grok-imagine-image", prompt: "A lighthouse", response_format: "b64_json" },
+        { model: "grok-imagine-image", prompt: "A lighthouse", response_format: "url" },
+      ])
     }),
   )
 
@@ -457,6 +489,7 @@ describe("Image", () => {
                   { url: "https://example.test/source.jpg", type: "image_url" },
                   { file_id: "file_123" },
                 ],
+                response_format: "b64_json",
               })
               return Effect.succeed(
                 input.respond(JSON.stringify({ data: [{ b64_json: "AQID", mime_type: "image/png" }] }), {
@@ -484,6 +517,7 @@ describe("Image", () => {
                 model: "future-model",
                 prompt: "Edit this image",
                 image: { file_id: "file_123" },
+                response_format: "b64_json",
               })
               return Effect.succeed(
                 input.respond(JSON.stringify({ data: [{ b64_json: "AQID", mime_type: "image/png" }] }), {
@@ -945,12 +979,21 @@ describe("Image", () => {
         images: images.slice(0, 1),
         aspect: "16:9",
       })
-      yield* Image.start({ model: fal.image("fal-ai/flux-pro/kontext/max/multi"), prompt: "A lighthouse", images })
+      yield* Image.start({
+        model: fal.image("fal-ai/flux-pro/kontext/max/multi"),
+        prompt: "A lighthouse",
+        images,
+        providerOptions: { sync_mode: false },
+      })
 
       expect(rejected.reason).toMatchObject({ _tag: "UnsupportedOperation", operation: "media.resolution" })
       expect(bodies).toEqual([
-        { prompt: "A lighthouse", aspect_ratio: "16:9", image_url: "https://example.test/a.png" },
-        { prompt: "A lighthouse", image_urls: ["https://example.test/a.png", "https://example.test/b.png"] },
+        { prompt: "A lighthouse", aspect_ratio: "16:9", image_url: "https://example.test/a.png", sync_mode: true },
+        {
+          prompt: "A lighthouse",
+          image_urls: ["https://example.test/a.png", "https://example.test/b.png"],
+          sync_mode: false,
+        },
       ])
     }).pipe(
       Effect.provide(

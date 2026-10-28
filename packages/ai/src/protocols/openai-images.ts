@@ -64,7 +64,7 @@ const Settings = {
 }
 
 const OpenAIImageResponse = Schema.Struct({
-  // `response_format` picks `b64_json` or `url`; DALL·E and many compatible hosts default to `url`.
+  // GPT Image models always return `b64_json`; compatible hosts that default to `url` can return either.
   data: Schema.Array(Schema.Struct({ b64_json: optionalNull(Schema.String), url: optionalNull(Schema.String) })),
   ...Settings,
   usage: Schema.optional(Usage),
