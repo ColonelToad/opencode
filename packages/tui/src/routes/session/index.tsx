@@ -3290,7 +3290,8 @@ function Subagent(props: ToolProps) {
     () =>
       stringValue(props.metadata.sessionID) ??
       stringValue(props.metadata.sessionId) ??
-      stringValue(props.input.sessionID),
+      // A failed continuation may name an unrelated session, such as the parent itself.
+      (props.part.state.status === "error" ? undefined : stringValue(props.input.sessionID)),
   )
   const description = createMemo(() => stringValue(props.input.description))
   const continuation = createMemo(() => Boolean(stringValue(props.input.sessionID)))
