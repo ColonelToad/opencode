@@ -726,9 +726,22 @@
       margin: 4px;
     }
 
+    /* The ghost button is transparent, so paint the section's background behind it, fading in from the left so the
+       line ends softly instead of being cut. It is exactly the button's height and never takes pointer events, so
+       only the text beside the button is covered: no gutter, and the lines below keep the full width. */
+    [data-slot="bash-copy"]::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: 0 0 0 -24px;
+      background: linear-gradient(to right, transparent, var(--bash-section-background) 24px);
+      pointer-events: none;
+    }
+
     [data-slot="bash-result"] {
+      --bash-section-background: var(--v2-background-bg-layer-01);
       border-block-start: 0.5px solid var(--v2-border-border-base);
-      background: var(--v2-background-bg-layer-01);
+      background: var(--bash-section-background);
       color: var(--v2-text-text-muted);
     }
 
@@ -738,6 +751,7 @@
     }
 
     [data-slot="bash-command"] {
+      --bash-section-background: var(--v2-background-bg-base);
       color: var(--v2-text-text-base);
     }
   }
