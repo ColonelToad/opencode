@@ -276,6 +276,9 @@ describe("Effect globals", () => {
     // @ts-expect-error Session must be provided
     const missing: CodeMode.Runtime<never> = runtime
     expect([provided, missing]).toEqual([runtime, runtime])
+    // An explicit tools type argument must name the extensions too, so their requirements are never dropped.
+    // @ts-expect-error web is not in the default empty extensions list
+    expect(CodeMode.make<{}>({ extensions: [web] })).toBeDefined()
   })
 
   test("an Effect global is a promise that runs with the execution's services", async () => {

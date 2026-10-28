@@ -43,7 +43,7 @@ export type ResolvedExecutionLimits = {
 /** Configuration shared by `CodeMode.make` and `CodeMode.execute`. */
 export type Options<
   Provided extends Record<string, unknown> = {},
-  Extensions extends ReadonlyArray<Extension> = ReadonlyArray<Extension>,
+  Extensions extends ReadonlyArray<Extension> = [],
 > = {
   /** Explicit tools exposed to the program as `tools`. */
   tools?: Provided & Tools<Services<Provided>>
@@ -64,7 +64,7 @@ export type Environment<
 /** Options for one CodeMode execution. */
 export type ExecuteOptions<
   Provided extends Record<string, unknown> = {},
-  Extensions extends ReadonlyArray<Extension> = ReadonlyArray<Extension>,
+  Extensions extends ReadonlyArray<Extension> = [],
 > = Options<Provided, Extensions> & {
   /** Source for one program in the supported JavaScript subset. */
   code: string
@@ -151,7 +151,7 @@ const resolveExecutionLimits = (limits?: ExecutionLimits): ResolvedExecutionLimi
 /** Executes one Effect-native CodeMode program without constructing a reusable runtime. */
 export const execute = <
   const Provided extends Record<string, unknown>,
-  const Extensions extends ReadonlyArray<Extension> = ReadonlyArray<Extension>,
+  const Extensions extends ReadonlyArray<Extension> = [],
 >(
   options: ExecuteOptions<Provided, Extensions>,
 ): Effect.Effect<Result, never, Environment<Provided, Extensions>> => make(options).execute(options.code)
@@ -159,7 +159,7 @@ export const execute = <
 /** Creates an Effect-native runtime over explicit, schema-described tools and extensions. */
 export const make = <
   const Provided extends Record<string, unknown> = {},
-  const Extensions extends ReadonlyArray<Extension> = ReadonlyArray<Extension>,
+  const Extensions extends ReadonlyArray<Extension> = [],
 >(
   options: Options<Provided, Extensions> = {},
 ): Runtime<Environment<Provided, Extensions>> => {
