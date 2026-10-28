@@ -310,13 +310,22 @@ ol {
 }
 
 /* Starlight 0.41 draws the tab underline with `--sl-tab-color-border` and adds top padding with a tighter line height. */
+/* Starlight 0.41 lays tabs out with flexbox and draws the underline as a box shadow. Keep the earlier border layout so tab heights, underline colors and focus rings stay the same. */
+.sl-markdown-content .tab {
+  display: block;
+  margin-bottom: -2px;
+}
+
 .sl-markdown-content .tab > [role="tab"] {
   padding-top: 0;
   line-height: var(--sl-line-height);
+  box-shadow: none;
+  border-bottom-width: 2px;
+  border-bottom-style: solid;
 }
 
 .sl-markdown-content .tab > [role="tab"][aria-selected="true"] {
-  --sl-tab-color-border: var(--color-text-strong);
+  border-color: var(--color-text-strong);
 }
 
 /* Starlight 0.41 also spaces a nested list that ends a list item; earlier versions didn't. */
@@ -459,6 +468,36 @@ h3,
 h4,
 h5,
 h6,
-code {
+:not(pre) > code {
   overflow-wrap: anywhere;
+}
+
+/* Starlight 0.41 adds automatic spacing between CJK and Latin characters. */
+[lang] {
+  text-autospace: no-autospace;
+}
+
+/* Starlight 0.41 dims the language and theme picker labels. */
+:is(starlight-lang-select, starlight-theme-select) label {
+  color: var(--sl-color-gray-1);
+}
+
+:is(starlight-lang-select, starlight-theme-select) label:hover {
+  color: var(--sl-color-gray-2);
+}
+
+/* Starlight 0.41 replaced the fade on mobile menu social links with a color change. */
+.mobile-preferences .social-icons a:hover {
+  opacity: 0.66;
+}
+
+/* The CSS minifier keeps only the last of a duplicated prefixed/unprefixed pair, so the unprefixed one goes last. */
+dialog[aria-label="Search"]::backdrop {
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+mobile-starlight-toc nav {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
