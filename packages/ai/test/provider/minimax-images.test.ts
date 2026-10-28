@@ -52,7 +52,7 @@ describe("MiniMax Images", () => {
       const response = yield* Image.generate({
         model: MiniMax.configure({
           apiKey: "test",
-          baseURL: "https://api.minimaxi.test/v1",
+          baseURL: "https://api.minimax.test/v1",
           headers: { "x-default": "yes" },
           http: { body: { configured: true } },
         }).image("image-01"),
@@ -80,7 +80,7 @@ describe("MiniMax Images", () => {
             dynamicResponse((input) =>
               Effect.gen(function* () {
                 const request = yield* HttpClientRequest.toWeb(input.request).pipe(Effect.orDie)
-                expect(request.url).toBe("https://api.minimaxi.test/v1/image_generation")
+                expect(request.url).toBe("https://api.minimax.test/v1/image_generation")
                 expect(request.headers.get("authorization")).toBe("Bearer test")
                 expect(request.headers.get("x-default")).toBe("yes")
                 expect(request.headers.get("x-request")).toBe("yes")
@@ -161,6 +161,9 @@ describe("MiniMax Images", () => {
       const live = yield* failure({ aspect: "5:4" }, "image-01-live")
       expect(live.reason._tag).toBe("UnsupportedOperation")
       expect(live.message).toContain("image-01-live can't render 5:4; the closest size it takes is 1152x864 (4:3)")
+
+      const liveWide = yield* failure({ aspect: "21:9" }, "image-01-live")
+      expect(liveWide.message).toContain("the closest size it takes is 1280x720 (16:9)")
 
       const liveLarge = yield* failure({ aspect: "16:9", resolution: "2K" }, "image-01-live")
       expect(liveLarge.message).toContain("the closest size it takes is 1280x720 (16:9)")

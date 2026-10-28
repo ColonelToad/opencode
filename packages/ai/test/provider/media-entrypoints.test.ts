@@ -146,9 +146,9 @@ const images: ReadonlyArray<Case<ImageModel>> = [
     name: "minimax",
     load: async () => {
       const { model } = await import("@opencode/ai/providers/minimax/images")
-      return model("image-01", { ...shared, apiKey: "minimax-key", baseURL: "https://api.minimaxi.com/v1" })
+      return model("image-01", { ...shared, apiKey: "minimax-key", baseURL: "https://api.minimax.cn/v1" })
     },
-    url: "https://api.minimaxi.com/v1/image_generation",
+    url: "https://api.minimax.cn/v1/image_generation",
     auth: ["authorization", "Bearer minimax-key"],
   },
   {

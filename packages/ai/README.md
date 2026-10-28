@@ -566,7 +566,7 @@ M2.x models always think, even when a disabling option is supplied. For tool con
 
 The default API bases are `https://api.minimax.io/anthropic/v1` for Messages and `https://api.minimax.io/v1` for
 Chat, Responses and Images. `configure({ baseURL })` replaces the selected API's base, including its version prefix;
-use `https://api.minimaxi.com/v1` for the mainland China platform. `minimax.image("image-01")` (also
+use `https://api.minimax.cn/v1` for the mainland China platform. `minimax.image("image-01")` (also
 `@opencode/ai/providers/minimax/images`) generates images; see [MiniMax images](#minimax-images).
 
 ## Meta
@@ -702,7 +702,7 @@ forwards `outputFormat` but does not apply it, so the returned bytes keep the up
 `@cf/black-forest-labs/flux-1-schnell` takes no size, and the provider rejects it. ³ Non-OpenAI gateway models
 (`bfl/flux-2-pro`) get a computed width × height, which the gateway passes through; models with a fixed list, such as
 Recraft, reject sizes outside it. ⁴ MiniMax sends its `aspect_ratio` preset for a preset aspect at about `1K` and an
-exact width × height (512–2048 px, steps of 8) otherwise; `image-01-live` takes only the presets.
+exact width × height (512–2048 px, steps of 8) otherwise; `image-01-live` takes only the presets, minus `21:9`.
 
 `Media.Asset` is the one asset type shared by image requests, image responses, LLM messages, and tool results.
 `asset.source` is the serializable `Media.Source` (`bytes`, `base64`, `url`, or `ref`); `asset.bytes()`,

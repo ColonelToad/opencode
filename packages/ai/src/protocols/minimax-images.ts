@@ -92,10 +92,14 @@ const nativeOptions = (options: MiniMaxImageOptions | undefined) => {
   return { response_format: responseFormat, prompt_optimizer: promptOptimizer, ...native }
 }
 
+/** `image-01-live` rejects `21:9`. */
+const presets = (model: string) =>
+  model === "image-01" ? PRESETS : Object.fromEntries(Object.entries(PRESETS).filter(([key]) => key !== "21:9"))
+
 /** Presets render at about 1K, so they serve a preset aspect with no resolution or `1K`. */
 const preset = (request: Request) => {
   const aspect = request.aspect ?? "1:1"
-  if (!Object.hasOwn(PRESETS, aspect)) return undefined
+  if (!Object.hasOwn(presets(request.model.id), aspect)) return undefined
   if (request.resolution !== undefined && ImageSizing.tier(request.resolution) !== 1) return undefined
   return aspect
 }
@@ -106,8 +110,9 @@ const sizing = (request: Request) => {
   const aspect = preset(request)
   if (aspect !== undefined) return Effect.succeed({ aspect_ratio: aspect })
   if (request.model.id === "image-01") return ImageSizing.exact(route, request, LIMITS)
-  const closest = ImageSizing.nearest(request, Object.values(PRESETS))
-  const name = Object.keys(PRESETS).find((key) => PRESETS[key] === closest)
+  const available = presets(request.model.id)
+  const closest = ImageSizing.nearest(request, Object.values(available))
+  const name = Object.keys(available).find((key) => available[key] === closest)
   return Effect.fail(
     route.unsupported(
       request.resolution === undefined ? "media.aspect" : "media.resolution",
