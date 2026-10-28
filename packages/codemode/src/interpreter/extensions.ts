@@ -32,7 +32,7 @@ import { describeValue, isOpaque } from "./references.js"
 /**
  * The global bindings of one run's extensions. Everything crossing the boundary is converted: plain data and
  * built-in wrappers are copied, a host function becomes a program function whose calls cross the same way, and a
- * host Promise becomes a program promise.
+ * host Promise or Effect becomes a program promise.
  */
 export const extensionGlobals = <R>(
   ctx: Interpreter<R>,
@@ -155,12 +155,18 @@ export const extensionGlobals = <R>(
       } catch (reason) {
         return blocking(ctx.runner.blocking(settle(Effect.fail(reason))))
       }
-      if (!(result instanceof Promise)) return blocking(ctx.runner.blocking(settle(Effect.succeed(result))))
+      const effect = Effect.isEffect(result)
+        ? // Extension.Services puts a global's Effect requirements in the runtime's environment.
+          (result as Effect.Effect<unknown, unknown, R>)
+        : result instanceof Promise
+          ? Effect.tryPromise({ try: () => result, catch: (reason) => reason })
+          : undefined
+      if (effect === undefined) return blocking(ctx.runner.blocking(settle(Effect.succeed(result))))
       const runner = ctx.runner
       const promise = runner.newPromise()
       const resolving = runner.resolving(promise, site)
       runner.host(
-        settle(Effect.tryPromise({ try: () => result, catch: (reason) => reason })),
+        settle(effect),
         (settled) => (settled.ok ? resolving.resolve(settled.value as Value) : resolving.reject(settled.error)),
         site,
       )
